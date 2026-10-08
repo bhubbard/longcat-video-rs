@@ -1,0 +1,20 @@
+[package]
+name = "longcat-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core flow-matching, 3D RoPE, and block-sparse diffusion transformer engine for LongCat-Video"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+colored.workspace = true
+safetensors.workspace = true
+hound.workspace = true
+image.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

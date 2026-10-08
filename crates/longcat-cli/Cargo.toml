@@ -1,0 +1,21 @@
+[package]
+name = "longcat-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "High-performance CLI for LongCat-Video: 13.6B diffusion transformer for long video generation and audio avatars"
+
+[[bin]]
+name = "longcat"
+path = "src/main.rs"
+
+[dependencies]
+longcat-core = { path = "../longcat-core" }
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+colored.workspace = true
+anyhow.workspace = true
+indicatif.workspace = true
+image.workspace = true
