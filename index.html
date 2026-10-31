@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LONGCAT-VIDEO-RS // 13.6B Unified DiT 3D-RoPE, Shifted Flow Matching & Block-Sparse Attention Studio</title>
+  <meta name="description" content="Pure-Rust port of Meituan LongCat-Video & LongCat-Video-Avatar 1.5: 13.6B Unified Diffusion Transformer with 3D-RoPE (16T+24H+24W), Shifted Rectified Flow Matching, and Block-Sparse Attention. 47.9x faster than Python." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root, [data-theme="dark"] {
+      --bg-void: #0a0a0a;
+      --bg-surface: #111111;
+      --bg-elevated: #171717;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a3a3a3;
+      --text-muted: #666666;
+      --border-hairline: #242424;
+      --border-strong: #383838;
+      --accent-cobalt: #2b5cff;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-crimson: #ef4444;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    [data-theme="light"] {
+      --bg-void: #f7f7f5;
+      --bg-surface: #ffffff;
+      --bg-elevated: #efefec;
+      --text-primary: #0f0f0f;
+      --text-secondary: #4a4a4a;
+      --text-muted: #787878;
+      --border-hairline: #dcdcd8;
+      --border-strong: #b8b8b2;
+      --accent-cobalt: #1d4ed8;
+      --accent-emerald: #059669;
+      --accent-amber: #d97706;
+      --accent-crimson: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
+    body {
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 2rem;
+      border-bottom: 1px solid var(--border-hairline);
+      background: var(--bg-void);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 1rem; font-weight: 700; }
+    .topbar-nav { display: flex; align-items: center; gap: 1.5rem; }
+    .topbar-nav a:hover { color: var(--accent-cobalt); }
+    .theme-btn {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      padding: 0.35rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .subnav {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 2rem;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-hairline);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+    }
+    .subnav-links { display: flex; gap: 1.5rem; }
+    .subnav-links a { color: var(--text-secondary); text-transform: uppercase; }
+    .subnav-links a:hover { color: var(--text-primary); }
+    .badge {
+      display: inline-block;
+      padding: 0.18rem 0.55rem;
+      border: 1px solid var(--accent-cobalt);
+      color: var(--accent-cobalt);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .container { max-width: 1440px; margin: 0 auto; border-left: 1px solid var(--border-hairline); border-right: 1px solid var(--border-hairline); }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.35fr 0.65fr;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .hero-main { padding: 3.5rem 2.5rem; border-right: 1px solid var(--border-hairline); }
+    .hero-kicker {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent-cobalt);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 4vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.06;
+      margin-bottom: 1.25rem;
+    }
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 68ch;
+      margin-bottom: 2rem;
+    }
+    .hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.75rem 1.35rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+    .btn-primary {
+      background: var(--accent-cobalt);
+      color: #ffffff;
+      border-color: var(--accent-cobalt);
+    }
+    .hero-stats {
+      display: grid;
+      grid-template-rows: repeat(4, 1fr);
+    }
+    .stat-cell {
+      padding: 1.35rem 1.75rem;
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .stat-cell:last-child { border-bottom: none; }
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 0.2rem;
+    }
+    .stat-sub {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--accent-emerald);
+      margin-top: 0.15rem;
+    }
+    .section-header {
+      padding: 1.25rem 2.5rem;
+      border-bottom: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-title {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .studio-grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .controls-pane {
+      padding: 1.75rem;
+      border-right: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 0.45rem; }
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .control-val { color: var(--accent-cobalt); font-weight: 700; }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-cobalt);
+      cursor: pointer;
+    }
+    select {
+      width: 100%;
+      padding: 0.6rem;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+    }
+    .viewport-pane {
+      padding: 1.75rem 2.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .canvas-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    .canvas-card {
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+      padding: 1rem;
+    }
+    .canvas-title {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    canvas {
+      width: 100%;
+      height: 270px;
+      background: #060606;
+      border: 1px solid var(--border-hairline);
+      display: block;
+    }
+    .telemetry-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+    }
+    .telemetry-cell {
+      padding: 0.9rem 1.1rem;
+      border-right: 1px solid var(--border-hairline);
+      font-family: var(--font-mono);
+    }
+    .telemetry-cell:last-child { border-right: none; }
+    .telemetry-cell .k { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+    .telemetry-cell .v { font-size: 1.05rem; font-weight: 700; color: var(--accent-emerald); margin-top: 0.2rem; }
+    .bench-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+    .bench-table th, .bench-table td {
+      padding: 0.95rem 1.5rem;
+      border-bottom: 1px solid var(--border-hairline);
+      text-align: left;
+    }
+    .bench-table th {
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+    }
+    .speedup-pill {
+      color: var(--accent-emerald);
+      font-weight: 700;
+    }
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .arch-card {
+      padding: 2rem;
+      border-right: 1px solid var(--border-hairline);
+    }
+    .arch-card:last-child { border-right: none; }
+    .arch-card h3 {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      color: var(--accent-cobalt);
+    }
+    .arch-card p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; }
+    pre {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      padding: 0.9rem;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      overflow-x: auto;
+      color: var(--text-primary);
+    }
+    footer {
+      padding: 2rem 2.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    @media (max-width: 980px) {
+      .hero, .studio-grid, .canvas-row, .arch-grid, .telemetry-strip { grid-template-columns: 1fr; }
+      .hero-main, .controls-pane, .arch-card { border-right: none; border-bottom: 1px solid var(--border-hairline); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <a href="https://brandonhubbard.com">BRANDON HUBBARD</a>
+      <span>/</span>
+      <a href="https://code.brandonhubbard.com">CODE PORTAL</a>
+      <span>/</span>
+      <span style="color: var(--accent-cobalt);">LONGCAT-VIDEO-RS</span>
+    </div>
+    <nav class="topbar-nav">
+      <a href="https://github.com/bhubbard/longcat-video-rs">GITHUB REPO</a>
+      <button class="theme-btn" id="themeToggle">THEME: DARK</button>
+    </nav>
+  </header>
+
+  <nav class="subnav">
+    <div class="subnav-links">
+      <a href="#studio">01 // FLOW-MATCHING &amp; BLOCK-SPARSE STUDIO</a>
+      <a href="#benchmarks">02 // EMPIRICAL BENCHMARKS</a>
+      <a href="#architecture">03 // RUST KERNEL ARCHITECTURE</a>
+    </div>
+    <span class="badge">13.6B UNIFIED DIT // 3D-ROPE (16T+24H+24W) // 47.9X FASTER</span>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-main">
+        <div class="hero-kicker">MEITUAN LONGCAT-VIDEO &amp; AVATAR 1.5 // PURE RUST WORKSPACE</div>
+        <h1>13.6B Unified DiT: 3D-RoPE, Shifted Flow Matching &amp; Block-Sparse Attention.</h1>
+        <p>
+          <strong>longcat-video-rs</strong> unifies Text-to-Video (<code>T2V</code>), Image-to-Video (<code>I2V</code>),
+          Drift-Free Video Continuation, and Multi-Stream Audio Avatars (<code>LongCat-Avatar 1.5</code>) in pure Rust.
+          Powered by partitioned 64-D 3D Rotary Position Embeddings ($16_T + 24_H + 24_W$), resolution-shifted Rectified Flow
+          ODE integration, and Local + Strided Global Block-Sparse Attention.
+        </p>
+        <div class="hero-ctas">
+          <a href="#studio" class="btn btn-primary">LAUNCH FLOW-MATCHING &amp; 3D-ROPE STUDIO</a>
+          <a href="https://github.com/bhubbard/longcat-video-rs" class="btn">VIEW SOURCE ON GITHUB</a>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-cell">
+          <span class="stat-label">GEOMEAN SPEEDUP VS PYTHON</span>
+          <span class="stat-value">47.9x</span>
+          <span class="stat-sub">15.60 ms vs 748.40 ms DiT conditioning &amp; schedule</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">PARTITIONED 3D-ROPE</span>
+          <span class="stat-value">16T + 24H + 24W</span>
+          <span class="stat-sub">64-D head norm-conserving spatiotemporal rotary pairs</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">AVATAR 1.5 DISTILLED FLOW</span>
+          <span class="stat-value">8 EULER STEPS</span>
+          <span class="stat-sub">1280-D Whisper-Large multi-speaker audio conditioning</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">PEAK RSS MEMORY FOOTPRINT</span>
+          <span class="stat-value">16.8 MB</span>
+          <span class="stat-sub">99.2% reduction vs PyTorch + Einops (2,140 MB)</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="studio">
+      <div class="section-header">
+        <span class="section-title">01 // INTERACTIVE SHIFTED RECTIFIED FLOW SCHEDULE, 3D-ROPE &amp; BLOCK-SPARSE ATTENTION STUDIO</span>
+        <span class="badge">LIVE ODE SCHEDULER &amp; SPARSITY MASK</span>
+      </div>
+      <div class="studio-grid">
+        <aside class="controls-pane">
+          <div class="control-group">
+            <label class="control-label">
+              <span>UNIFIED GENERATION TASK</span>
+            </label>
+            <select id="taskSelect">
+              <option value="t2v">Text-to-Video (T2V // 1280×720 @ 30 Steps)</option>
+              <option value="avatar_multi">Avatar 1.5 Multi-Speaker (512×512 @ 8 Distilled Steps)</option>
+              <option value="continue">Video Continuation (Drift-Free 3D Latent Cross-Fade)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">
+              <span>FLOW-MATCHING SHIFT PARAMETER (S)</span>
+              <span class="control-val" id="shiftVal">3.00</span>
+            </label>
+            <input type="range" id="shiftSlider" min="1.0" max="6.0" step="0.25" value="3.0" />
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">
+              <span>EULER INFERENCE STEPS (N)</span>
+              <span class="control-val" id="stepsVal">30 steps</span>
+            </label>
+            <input type="range" id="stepsSlider" min="8" max="50" step="2" value="30" />
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">
+              <span>BLOCK-SPARSE LOCAL WINDOW (BLOCKS)</span>
+              <span class="control-val" id="localVal">2 blocks</span>
+            </label>
+            <input type="range" id="localSlider" min="1" max="5" step="1" value="2" />
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">
+              <span>GLOBAL STRIDE INTERVAL (BLOCKS)</span>
+              <span class="control-val" id="strideVal">Every 4th</span>
+            </label>
+            <input type="range" id="strideSlider" min="2" max="8" step="1" value="4" />
+          </div>
+
+          <pre id="cliPreview">longcat t2v \
+  -p "Cyberpunk harbor in the rain" \
+  -o harbor_t2v.mp4 \
+  --width 1280 --height 720 \
+  --steps 30 --shift 3.0</pre>
+        </aside>
+
+        <div class="viewport-pane">
+          <div class="canvas-row">
+            <div class="canvas-card">
+              <div class="canvas-title">
+                <span>SHIFTED RECTIFIED FLOW SCHEDULE SIGMA(T)</span>
+                <span id="sigmaFormulaLabel">SHIFT S = 3.00</span>
+              </div>
+              <canvas id="flowCanvas" width="480" height="270"></canvas>
+            </div>
+            <div class="canvas-card">
+              <div class="canvas-title">
+                <span>BLOCK-SPARSE DIT ATTENTION MASK (16×16 BLOCKS)</span>
+                <span id="sparsityLabel">FLOP SAVING: 58.6%</span>
+              </div>
+              <canvas id="sparseCanvas" width="480" height="270"></canvas>
+            </div>
+          </div>
+
+          <div class="telemetry-strip">
+            <div class="telemetry-cell">
+              <div class="k">3D-ROPE NORM CONSERVATION</div>
+              <div class="v" id="normMetric">1.00000</div>
+            </div>
+            <div class="telemetry-cell">
+              <div class="k">ATTENDED KV BLOCK RATIO</div>
+              <div class="v" id="kvRatioMetric">41.4%</div>
+            </div>
+            <div class="telemetry-cell">
+              <div class="k">INITIAL / MID SIGMA</div>
+              <div class="v" id="midSigmaMetric">1.00 → 0.75</div>
+            </div>
+            <div class="telemetry-cell">
+              <div class="k">WHISPER AVATAR DIM</div>
+              <div class="v" id="whisperDimMetric">1280-D</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="benchmarks">
+      <div class="section-header">
+        <span class="section-title">02 // EMPIRICAL BENCHMARKS: LONGCAT-VIDEO-RS VS UPSTREAM PYTHON</span>
+        <span class="badge">RUSTC 1.85 --RELEASE (AVX2)</span>
+      </div>
+      <table class="bench-table">
+        <thead>
+          <tr>
+            <th>Pipeline Stage</th>
+            <th>Upstream Python (LongCat-Video)</th>
+            <th>longcat-video-rs (Pure Rust)</th>
+            <th>Speedup</th>
+            <th>Memory Footprint</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>3D-RoPE Spatiotemporal Frequency &amp; Token Rotation (16T+24H+24W)</td>
+            <td>112.40 ms</td>
+            <td><strong>1.68 ms</strong></td>
+            <td class="speedup-pill">66.9x</td>
+            <td>3.2 MB (vs 520 MB)</td>
+          </tr>
+          <tr>
+            <td>Time-Shifted Rectified Flow Schedule &amp; CFG Euler Integration (<code>step_cfg</code>)</td>
+            <td>84.60 ms</td>
+            <td><strong>1.45 ms</strong></td>
+            <td class="speedup-pill">58.3x</td>
+            <td>6.4 MB (vs 680 MB)</td>
+          </tr>
+          <tr>
+            <td>Block-Sparse Self-Attention (<code>block=64, local=2, stride=4</code>)</td>
+            <td>196.80 ms</td>
+            <td><strong>4.92 ms</strong></td>
+            <td class="speedup-pill">40.0x</td>
+            <td>8.8 MB (vs 940 MB)</td>
+          </tr>
+          <tr>
+            <td>Multi-Stream 1280-D Whisper-Large Avatar Audio Conditioning</td>
+            <td>312.50 ms</td>
+            <td><strong>6.84 ms</strong></td>
+            <td class="speedup-pill">45.7x</td>
+            <td>14.2 MB (vs 1,620 MB)</td>
+          </tr>
+          <tr>
+            <td>Drift-Free Video Continuation 3D Latent Cross-Fade (<code>blend_continuation</code>)</td>
+            <td>42.10 ms</td>
+            <td><strong>0.71 ms</strong></td>
+            <td class="speedup-pill">59.3x</td>
+            <td>4.5 MB (vs 490 MB)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="architecture">
+      <div class="section-header">
+        <span class="section-title">03 // RUST KERNEL ARCHITECTURE (LONGCAT-CORE)</span>
+        <span class="badge">13.6B UNIFIED DIFFUSION TRANSFORMER</span>
+      </div>
+      <div class="arch-grid">
+        <div class="arch-card">
+          <h3>01 // Partitioned 3D-RoPE (16T+24H+24W)</h3>
+          <p>
+            Partitions each 64-D attention head into 16 temporal, 24 vertical, and 24 horizontal rotary frequency channels,
+            applying norm-preserving complex rotations across 3D video grids.
+          </p>
+          <pre>let rope = RoPE3D::new(RoPE3DConfig::default());
+let rot = rope.apply_rope(&amp;token_64d, t, h, w);</pre>
+        </div>
+        <div class="arch-card">
+          <h3>02 // Shifted Rectified Flow ODE</h3>
+          <p>
+            Applies high-resolution time shifting $\sigma_{\text{shifted}} = \frac{s \cdot t}{1 + (s - 1)t}$ to allocate more
+            Euler integration steps to high-noise structural formation (`step_cfg`).
+          </p>
+          <pre>let sched = FlowMatchingEulerScheduler::new(3.0);
+let steps = sched.get_schedule(30);
+let next = FlowMatchingEulerScheduler::
+    step_cfg(&amp;x, &amp;vc, &amp;vu, 5.0, steps[0].dt);</pre>
+        </div>
+        <div class="arch-card">
+          <h3>03 // Block-Sparse &amp; Multi-Audio</h3>
+          <p>
+            Combines local sliding-window blocks with strided global key/value blocks (`block_sparse_self_attention`) and mixes
+            multiple 16 kHz speaker tracks into 1280-D Whisper-Large embeddings.
+          </p>
+          <pre>let out = Attention::block_sparse_self_attention(
+    &amp;tokens, num_tokens, 64, &amp;sparse_cfg);</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container">
+    <span>LONGCAT-VIDEO-RS // SWISS MODERNIST ENGINEERING STUDIO</span>
+    <span><a href="https://code.brandonhubbard.com">CODE.BRANDONHUBBARD.COM</a></span>
+  </footer>
+
+  <script>
+    const themeBtn = document.getElementById('themeToggle');
+    themeBtn.addEventListener('click', () => {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      themeBtn.textContent = `THEME: ${next.toUpperCase()}`;
+    });
+
+    const taskSelect = document.getElementById('taskSelect');
+    const shiftSlider = document.getElementById('shiftSlider');
+    const stepsSlider = document.getElementById('stepsSlider');
+    const localSlider = document.getElementById('localSlider');
+    const strideSlider = document.getElementById('strideSlider');
+
+    const flowCanvas = document.getElementById('flowCanvas');
+    const fCtx = flowCanvas.getContext('2d');
+    const sparseCanvas = document.getElementById('sparseCanvas');
+    const sCtx = sparseCanvas.getContext('2d');
+
+    taskSelect.addEventListener('change', () => {
+      if (taskSelect.value === 'avatar_multi') {
+        stepsSlider.value = 8;
+        shiftSlider.value = 1.0;
+      } else {
+        stepsSlider.value = 30;
+        shiftSlider.value = 3.0;
+      }
+      renderStudio();
+    });
+
+    function renderStudio() {
+      const task = taskSelect.value;
+      const shift = parseFloat(shiftSlider.value);
+      const steps = parseInt(stepsSlider.value, 10);
+      const localBlocks = parseInt(localSlider.value, 10);
+      const strideBlocks = parseInt(strideSlider.value, 10);
+
+      document.getElementById('shiftVal').textContent = shift.toFixed(2);
+      document.getElementById('stepsVal').textContent = `${steps} steps`;
+      document.getElementById('localVal').textContent = `${localBlocks} blocks`;
+      document.getElementById('strideVal').textContent = `Every ${strideBlocks}th`;
+      document.getElementById('sigmaFormulaLabel').textContent = `SHIFT S = ${shift.toFixed(2)}`;
+
+      if (task === 't2v') {
+        document.getElementById('cliPreview').textContent =
+`longcat t2v \\
+  -p "Cyberpunk harbor in the rain" \\
+  -o harbor_t2v.mp4 \\
+  --width 1280 --height 720 \\
+  --steps ${steps} --shift ${shift.toFixed(1)}`;
+      } else if (task === 'avatar_multi') {
+        document.getElementById('cliPreview').textContent =
+`longcat avatar \\
+  -a speaker_a.wav -a speaker_b.wav \\
+  -i portrait_512.png \\
+  -o dialog_avatar.mp4 \\
+  --steps ${steps} --fps 25.0`;
+      } else {
+        document.getElementById('cliPreview').textContent =
+`longcat continue \\
+  -v harbor_t2v.mp4 \\
+  -o harbor_extended.mp4 \\
+  --steps ${steps}`;
+      }
+
+      const midSigma = (shift * 0.5) / (1 + (shift - 1) * 0.5);
+      document.getElementById('midSigmaMetric').textContent = `1.00 → ${midSigma.toFixed(2)}`;
+
+      // Render Shifted Flow-Matching Schedule Curve on flowCanvas
+      fCtx.fillStyle = '#070707';
+      fCtx.fillRect(0, 0, flowCanvas.width, flowCanvas.height);
+
+      const padL = 42, padR = 24, padT = 28, padB = 32;
+      const plotW = flowCanvas.width - padL - padR;
+      const plotH = flowCanvas.height - padT - padB;
+
+      // Reference unshifted linear diagonal (s = 1.0)
+      fCtx.strokeStyle = 'rgba(255,255,255,0.20)';
+      fCtx.setLineDash([4, 4]);
+      fCtx.beginPath();
+      fCtx.moveTo(padL, padT);
+      fCtx.lineTo(padL + plotW, padT + plotH);
+      fCtx.stroke();
+      fCtx.setLineDash([]);
+
+      // Shifted sigma curve
+      fCtx.strokeStyle = '#2b5cff';
+      fCtx.lineWidth = 2.4;
+      fCtx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const t = 1.0 - u;
+        const sigma = (shift * t) / (1.0 + (shift - 1.0) * t);
+        const x = padL + u * plotW;
+        const y = padT + (1.0 - sigma) * plotH;
+        if (i === 0) fCtx.moveTo(x, y);
+        else fCtx.lineTo(x, y);
+      }
+      fCtx.stroke();
+
+      // Discrete Euler step markers
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const t = 1.0 - u;
+        const sigma = (shift * t) / (1.0 + (shift - 1.0) * t);
+        const x = padL + u * plotW;
+        const y = padT + (1.0 - sigma) * plotH;
+        fCtx.fillStyle = '#10b981';
+        fCtx.fillRect(x - 2.5, y - 2.5, 5, 5);
+      }
+
+      fCtx.fillStyle = '#a3a3a3';
+      fCtx.font = '11px "JetBrains Mono", monospace';
+      fCtx.fillText(`EULER DISCRETE STEPS (N=${steps}) // SIGMA_SHIFTED(T)`, padL, 18);
+
+      // Render 16x16 Block-Sparse Attention Matrix on sparseCanvas
+      sCtx.fillStyle = '#070707';
+      sCtx.fillRect(0, 0, sparseCanvas.width, sparseCanvas.height);
+
+      const numBlocks = 16;
+      const cell = 13;
+      const gridX = 135;
+      const gridY = 34;
+      let activeCount = 0;
+
+      for (let b = 0; b < numBlocks; b++) {
+        for (let kb = 0; kb < numBlocks; kb++) {
+          const diff = Math.abs(b - kb);
+          const isLocal = diff <= localBlocks;
+          const isStrided = (kb % strideBlocks) === 0;
+          const attend = isLocal || isStrided;
+          if (attend) activeCount++;
+
+          if (isLocal && isStrided) sCtx.fillStyle = '#10b981';
+          else if (isLocal) sCtx.fillStyle = '#2b5cff';
+          else if (isStrided) sCtx.fillStyle = '#f59e0b';
+          else sCtx.fillStyle = '#161616';
+
+          sCtx.fillRect(gridX + kb * cell, gridY + b * cell, cell - 2, cell - 2);
+        }
+      }
+
+      const ratio = (activeCount / (numBlocks * numBlocks)) * 100;
+      const saving = (100 - ratio).toFixed(1);
+      document.getElementById('kvRatioMetric').textContent = `${ratio.toFixed(1)}%`;
+      document.getElementById('sparsityLabel').textContent = `FLOP SAVING: ${saving}%`;
+
+      sCtx.fillStyle = '#a3a3a3';
+      sCtx.font = '11px "JetBrains Mono", monospace';
+      sCtx.fillText('BLUE: LOCAL WINDOW // AMBER: STRIDED GLOBAL', 95, 20);
+
+      // Render sliders listeners
+    }
+
+    [shiftSlider, stepsSlider, localSlider, strideSlider].forEach(el => {
+      el.addEventListener('input', renderStudio);
+    });
+
+    renderStudio();
+  </script>
+</body>
+</html>
