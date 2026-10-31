@@ -34,13 +34,20 @@ impl AvatarAudioProcessor {
         let raw: Vec<f32> = match spec.sample_format {
             hound::SampleFormat::Int => {
                 let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
-                reader.samples::<i32>().map(|s| s.unwrap_or(0) as f32 / max).collect()
+                reader
+                    .samples::<i32>()
+                    .map(|s| s.unwrap_or(0) as f32 / max)
+                    .collect()
             }
-            hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap_or(0.0)).collect(),
+            hound::SampleFormat::Float => {
+                reader.samples::<f32>().map(|s| s.unwrap_or(0.0)).collect()
+            }
         };
 
         let mono = if channels > 1 {
-            raw.chunks(channels).map(|c| c.iter().sum::<f32>() / channels as f32).collect()
+            raw.chunks(channels)
+                .map(|c| c.iter().sum::<f32>() / channels as f32)
+                .collect()
         } else {
             raw
         };
@@ -132,15 +139,15 @@ impl AvatarAudioProcessor {
             for stream in &streams {
                 if f < stream.len() {
                     active_streams += 1;
-                    for d in 0..WHISPER_EMBED_DIM {
-                        combined[d] += stream[f].embedding[d];
+                    for (c, &e) in combined.iter_mut().zip(stream[f].embedding.iter()) {
+                        *c += e;
                     }
                 }
             }
 
             if active_streams > 1 {
-                for d in 0..WHISPER_EMBED_DIM {
-                    combined[d] /= active_streams as f32;
+                for c in &mut combined {
+                    *c /= active_streams as f32;
                 }
             }
             mixed_features.push(combined);
@@ -160,7 +167,7 @@ impl AvatarAudioProcessor {
         }
 
         let step = (chunk.len() / dim).max(1);
-        for d in 0..dim {
+        for (d, val) in emb.iter_mut().enumerate() {
             let start = (d * step).min(chunk.len());
             let end = ((d + 1) * step).min(chunk.len());
             let slice = &chunk[start..end];
@@ -170,7 +177,7 @@ impl AvatarAudioProcessor {
                     let w = 0.54 - 0.46 * (2.0 * PI * i as f32 / slice.len() as f32).cos();
                     sum += (s * w).powi(2);
                 }
-                emb[d] = (1.0 + (sum / slice.len() as f32)).ln();
+                *val = (1.0 + (sum / slice.len() as f32)).ln();
             }
         }
         emb

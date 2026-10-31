@@ -49,7 +49,10 @@ impl VideoLatent3D {
     /// Blend another latent onto this latent with smooth temporal cross-fade
     /// Used in Video Continuation to eliminate color drift and seam artifacts
     pub fn blend_continuation(&mut self, next: &VideoLatent3D, overlap_frames: usize) {
-        if self.channels != next.channels || self.height != next.height || self.width != next.width {
+        if self.channels != next.channels
+            || self.height != next.height
+            || self.width != next.width
+        {
             return;
         }
 
@@ -88,7 +91,7 @@ mod tests {
 
         latent1.blend_continuation(&latent2, 4);
 
-        let mid_idx = (0 * 10 + 8) * 64; // near end
+        let mid_idx = 8 * 64; // near end of channel 0
         assert!(latent1.data[mid_idx] > 1.0 && latent1.data[mid_idx] < 2.0);
 
         let sliced = latent1.slice_frames(2, 6);

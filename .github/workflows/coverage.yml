@@ -2,20 +2,17 @@ name: Code Coverage
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ main ]
-
-permissions:
-  contents: read
+    branches: [ "main", "master" ]
 
 jobs:
   coverage:
-    name: llvm-cov
+    name: LLVM Code Coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -25,26 +22,13 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Generate Code Coverage (LCOV & HTML)
+      - name: Generate LCOV report and verify coverage
         run: |
-          cargo llvm-cov --workspace --lcov --output-path lcov.info
-          cargo llvm-cov --workspace --html --output-dir target/llvm-cov/html
+          cargo llvm-cov --all-targets --workspace --lcov --output-path lcov.info
+          cargo llvm-cov report --summary-only
 
-      - name: Publish Coverage Summary to GitHub Step Summary
-        run: |
-          echo "### Code Coverage Report 📊" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
-          cargo llvm-cov report >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload HTML Coverage Report
-        uses: actions/upload-artifact@v7
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: code-coverage-report-html
-          path: target/llvm-cov/html
-
-      - name: Upload LCOV Report
-        uses: actions/upload-artifact@v7
-        with:
-          name: code-coverage-report-lcov
+          name: lcov-coverage-report
           path: lcov.info

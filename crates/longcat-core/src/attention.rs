@@ -39,11 +39,12 @@ impl Attention {
 
             for j in 0..seq_k {
                 let k_slice = &k[j * dim..(j + 1) * dim];
-                let mut dot = 0.0f32;
-                for d in 0..dim {
-                    dot += q_slice[d] * k_slice[d];
-                }
-                dot *= scale;
+                let dot: f32 = q_slice
+                    .iter()
+                    .zip(k_slice.iter())
+                    .map(|(&qv, &kv)| qv * kv)
+                    .sum::<f32>()
+                    * scale;
                 if dot > max_score {
                     max_score = dot;
                 }
@@ -68,8 +69,8 @@ impl Attention {
             let out_slice = &mut out[i * dim..(i + 1) * dim];
             for (j, weight) in exp_scores.into_iter().enumerate() {
                 let v_slice = &v[j * dim..(j + 1) * dim];
-                for d in 0..dim {
-                    out_slice[d] += weight * v_slice[d];
+                for (o, &vv) in out_slice.iter_mut().zip(v_slice.iter()) {
+                    *o += weight * vv;
                 }
             }
         }
@@ -88,7 +89,7 @@ impl Attention {
             return Vec::new();
         }
 
-        let num_blocks = (num_tokens + config.block_size - 1) / config.block_size;
+        let num_blocks = num_tokens.div_ceil(config.block_size);
         let mut output = vec![0.0f32; num_tokens * token_dim];
 
         for b in 0..num_blocks {
@@ -99,7 +100,7 @@ impl Attention {
             // Determine attendable key/value blocks: local window + strided global blocks
             let mut attend_blocks = Vec::new();
             for kb in 0..num_blocks {
-                let diff = if b >= kb { b - kb } else { kb - b };
+                let diff = b.abs_diff(kb);
                 if diff <= config.local_blocks || kb % config.stride_blocks == 0 {
                     attend_blocks.push(kb);
                 }
@@ -144,8 +145,8 @@ impl Attention {
         let mut projected_audio = vec![0.0f32; token_dim];
         let audio_dim = audio_embedding.len();
         if audio_dim > 0 {
-            for i in 0..token_dim {
-                projected_audio[i] = audio_embedding[i % audio_dim];
+            for (i, proj) in projected_audio.iter_mut().enumerate() {
+                *proj = audio_embedding[i % audio_dim];
             }
         }
 

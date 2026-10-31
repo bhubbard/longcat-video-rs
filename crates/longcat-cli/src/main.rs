@@ -339,8 +339,8 @@ fn main() -> Result<()> {
 
             for _step in &schedule {
                 for f in 0..frames {
-                    let _rot = rope.apply_rope(&vec![0.1; 64], f, 30, 45);
-                    let _attn = longcat_core::Attention::scaled_dot_product(&vec![0.1; 64], &vec![0.1; 64], &vec![0.1; 64], 1, 1, 64);
+                    let _rot = rope.apply_rope(&[0.1; 64], f, 30, 45);
+                    let _attn = longcat_core::Attention::scaled_dot_product(&[0.1; 64], &[0.1; 64], &[0.1; 64], 1, 1, 64);
                 }
             }
 

@@ -33,8 +33,8 @@ fn test_rope_3d_properties() {
     assert_eq!(freqs_0.len(), 32); // 64 / 2 pairs
     assert_eq!(freqs_1.len(), 32);
 
-    let mut q = vec![1.0f32; 64];
-    rope.apply_rope(&mut q, 1, 2, 3);
+    let q = vec![1.0f32; 64];
+    let _rot = rope.apply_rope(&q, 1, 2, 3);
     assert_eq!(q.len(), 64);
 }
 

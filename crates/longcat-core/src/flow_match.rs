@@ -58,9 +58,28 @@ impl FlowMatchingEulerScheduler {
     /// x_{next} = x_curr + dt * velocity
     pub fn step(sample: &[f32], model_output: &[f32], dt: f32) -> Vec<f32> {
         let mut out = Vec::with_capacity(sample.len());
-        for i in 0..sample.len() {
-            let v = if i < model_output.len() { model_output[i] } else { 0.0 };
-            out.push(sample[i] + dt * v);
+        for (i, &s) in sample.iter().enumerate() {
+            let v = model_output.get(i).copied().unwrap_or(0.0);
+            out.push(s + dt * v);
+        }
+        out
+    }
+
+    /// Perform Classifier-Free Guidance (CFG) Euler integration step:
+    /// v_cfg = v_uncond + guidance_scale * (v_cond - v_uncond)
+    pub fn step_cfg(
+        sample: &[f32],
+        vel_cond: &[f32],
+        vel_uncond: &[f32],
+        guidance_scale: f32,
+        dt: f32,
+    ) -> Vec<f32> {
+        let mut out = Vec::with_capacity(sample.len());
+        for (i, &s) in sample.iter().enumerate() {
+            let vc = vel_cond.get(i).copied().unwrap_or(0.0);
+            let vu = vel_uncond.get(i).copied().unwrap_or(0.0);
+            let v_guided = vu + guidance_scale * (vc - vu);
+            out.push(s + dt * v_guided);
         }
         out
     }
@@ -86,12 +105,16 @@ mod tests {
     }
 
     #[test]
-    fn test_euler_step() {
+    fn test_euler_step_and_cfg() {
         let sample = vec![1.0, 2.0, 3.0];
         let velocity = vec![0.5, -0.5, 1.0];
         let next = FlowMatchingEulerScheduler::step(&sample, &velocity, -0.1);
         assert!((next[0] - 0.95).abs() < 1e-5);
         assert!((next[1] - 2.05).abs() < 1e-5);
         assert!((next[2] - 2.90).abs() < 1e-5);
+
+        let uncond = vec![0.0, 0.0, 0.0];
+        let cfg_next = FlowMatchingEulerScheduler::step_cfg(&sample, &velocity, &uncond, 2.0, -0.1);
+        assert!((cfg_next[0] - 0.90).abs() < 1e-5);
     }
 }
